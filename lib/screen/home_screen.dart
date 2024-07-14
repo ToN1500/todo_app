@@ -24,29 +24,60 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> addTodoList() async {
-    final res = await http.post(Uri.parse(API_URL),
+    final response = await http.post(Uri.parse(API_URL),
         body: json.encode({'title': task.text}),
         headers: {
           'Content-Type': 'application/json',
         });
-    if (res.statusCode == 201) {
+    if (response.statusCode == 201) {
       print('Add todo success');
+      fetchTodoList().then((value) {
+        print(value);
+        setState(() {
+          todoList = value;
+        });
+      });
+    } else {
+      throw Exception('Failed to add todo');
+    }
+  }
+
+  Future<void> deleteTodoList(int todoId) async {
+    final url = Uri.parse('$API_URL/$todoId');
+    final response = await http.delete(url);
+
+    if (response.statusCode == 204) {
+      print('Delete todo success');
       fetchTodoList().then((value) {
         setState(() {
           todoList = value;
         });
       });
+    } else {
+      throw Exception('Failed to delete todo');
     }
   }
 
-  // Futrue<void> deleteTodoList() async {
-  //   final res = await http.delete(Uri.parse(API_URL));
-  // }
+  Future<void> editTodoList(int todoId) async {
+    final url = Uri.parse('$API_URL/$todoId');
+    final response = await http.put(url);
+
+    if (response.statusCode == 200) {
+      print('edit todo success');
+      fetchTodoList().then((value) {
+        setState(() {
+          todoList = value;
+        });
+      });
+    } else {
+      throw Exception('Failed to edit todo');
+    }
+  }
 
   @override
   initState() {
     super.initState();
-    fetchTodoList().then((value){
+    fetchTodoList().then((value) {
       print(value);
       setState(() {
         todoList = value;
@@ -58,23 +89,10 @@ class _HomeScreenState extends State<HomeScreen> {
 
   final task = TextEditingController();
 
-  // void addTodo() {
-  //   setState(() {
-  //     todoList.add(task.'title');
-  //     task.clear();
-  //   });
-  // }
-
-  void editTodo() {}
-
-  void deleteTodo(index) {
-    setState(() {
-      todoList.removeAt(index);
-    });
-  }
-
   @override
   Widget build(BuildContext context) {
+    bool isChecked = false;
+
     return Scaffold(
       appBar: AppBar(
         title: Text('Todo List'),
@@ -112,11 +130,71 @@ class _HomeScreenState extends State<HomeScreen> {
                 itemBuilder: (context, index) {
                   return ListTile(
                     title: Text(todoList[index]['title']),
-                    trailing: IconButton(
-                      icon: Icon(Icons.delete),
-                      onPressed: () {
-                        deleteTodo(index);
-                      },
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          icon: Icon(Icons.edit),
+                          onPressed: () {
+                            // deleteTodoList(todoList[index]['id']);
+                            showDialog(
+                                context: context,
+                                builder: (BuildContext context) {
+                                  return AlertDialog(
+                                      scrollable: true,
+                                      title: Text('แก้ไขรายการ'),
+                                      content: Padding(
+                                        padding: const EdgeInsets.all(8.0),
+                                        child: Form(
+                                          child: Column(
+                                            children: <Widget>[
+                                              TextFormField(
+                                                decoration: InputDecoration(
+                                                  labelText: 'สิ่งที่ต้องทำ',
+                                                  border: OutlineInputBorder(),
+                                                ),
+                                                keyboardType:
+                                                    TextInputType.text,
+                                              ),
+                                              SizedBox(
+                                                height: 5,
+                                              ),
+                                              Row(
+                                                mainAxisAlignment:
+                                                    MainAxisAlignment.center,
+                                                children: [
+                                                  Checkbox(
+                                                    value: isChecked,
+                                                    onChanged: (newValue) {
+                                                      setState(() {
+                                                        isChecked = newValue!;
+                                                      });
+                                                    },
+                                                  ),
+                                                  Text('ทำสำเร็จแล้ว'),
+                                                ],
+                                              ),
+                                              SizedBox(
+                                                height: 5,
+                                              ),
+                                              ElevatedButton(
+                                                onPressed: addTodoList,
+                                                child: Text('แก้ไข'),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ));
+                                });
+                          },
+                        ),
+                        IconButton(
+                          icon: Icon(Icons.delete),
+                          onPressed: () {
+                            deleteTodoList(todoList[index]['id']);
+                          },
+                        ),
+                      ],
                     ),
                   );
                 },

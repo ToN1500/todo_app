@@ -58,12 +58,18 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  Future<void> editTodoList(int todoId) async {
+  Future<void> editTodoList(int todoId, String title, bool completed) async {
     final url = Uri.parse('$API_URL/$todoId');
-    final response = await http.put(url);
+    final response = await http.put(
+      url,
+      body: json.encode({'title': title, 'completed': completed}),
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    );
 
     if (response.statusCode == 200) {
-      print('edit todo success');
+      print('Edit todo success');
       fetchTodoList().then((value) {
         setState(() {
           todoList = value;
@@ -88,11 +94,10 @@ class _HomeScreenState extends State<HomeScreen> {
   List todoList = [];
 
   final task = TextEditingController();
+  final task2 = TextEditingController();
 
   @override
   Widget build(BuildContext context) {
-    bool isChecked = false;
-
     return Scaffold(
       appBar: AppBar(
         title: Text('Todo List'),
@@ -116,7 +121,18 @@ class _HomeScreenState extends State<HomeScreen> {
                     height: 20,
                   ),
                   ElevatedButton(
-                    onPressed: addTodoList,
+                    onPressed: () {
+                      if (task.text.isEmpty) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('กรุณากรอกข้อมูล'),
+                          ),
+                        );
+                        return;
+                      }
+                      addTodoList();
+                      task.clear();
+                    },
                     child: Text('เพิ่ม'),
                   ),
                 ],
@@ -127,78 +143,129 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             Expanded(
               child: ListView.builder(
+                itemCount: todoList.length,
                 itemBuilder: (context, index) {
-                  return ListTile(
-                    title: Text(todoList[index]['title']),
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        IconButton(
-                          icon: Icon(Icons.edit),
-                          onPressed: () {
-                            // deleteTodoList(todoList[index]['id']);
-                            showDialog(
+                  bool isChecked = todoList[index]['completed'];
+                  TextEditingController editTaskController =
+                      TextEditingController(text: todoList[index]['title']);
+
+                  return Container(
+                    color: isChecked ? Colors.grey[200] : null,
+                    child: ListTile(
+                      title: Text(
+                        todoList[index]['title'],
+                      ),
+                      titleTextStyle:
+                          TextStyle(color: Colors.black, fontSize: 15),
+                      subtitle: Text(
+                        todoList[index]['completed'] == true
+                            ? ' ทำแล้ว'
+                            : ' ยังไม่ได้ทำ',
+                      ),
+                      subtitleTextStyle: TextStyle(
+                        color: todoList[index]['completed'] == true
+                            ? Colors.green
+                            : Colors.red,
+                        fontSize: 12,
+                      ),
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          IconButton(
+                            icon: Icon(Icons.edit),
+                            onPressed: () {
+                              bool editCompleted = todoList[index]['completed'];
+                              showDialog(
                                 context: context,
                                 builder: (BuildContext context) {
-                                  return AlertDialog(
-                                      scrollable: true,
-                                      title: Text('แก้ไขรายการ'),
-                                      content: Padding(
-                                        padding: const EdgeInsets.all(8.0),
-                                        child: Form(
-                                          child: Column(
-                                            children: <Widget>[
-                                              TextFormField(
-                                                decoration: InputDecoration(
-                                                  labelText: 'สิ่งที่ต้องทำ',
-                                                  border: OutlineInputBorder(),
-                                                ),
-                                                keyboardType:
-                                                    TextInputType.text,
-                                              ),
-                                              SizedBox(
-                                                height: 5,
-                                              ),
-                                              Row(
-                                                mainAxisAlignment:
-                                                    MainAxisAlignment.center,
-                                                children: [
-                                                  Checkbox(
-                                                    value: isChecked,
-                                                    onChanged: (newValue) {
-                                                      setState(() {
-                                                        isChecked = newValue!;
-                                                      });
-                                                    },
+                                  return StatefulBuilder(
+                                    builder: (context, setState) {
+                                      return AlertDialog(
+                                        scrollable: true,
+                                        title: Text('แก้ไขรายการ'),
+                                        content: Padding(
+                                          padding: const EdgeInsets.all(8.0),
+                                          child: Form(
+                                            child: Column(
+                                              children: <Widget>[
+                                                TextFormField(
+                                                  controller:
+                                                      editTaskController,
+                                                  decoration: InputDecoration(
+                                                    labelText: 'สิ่งที่ต้องทำ',
+                                                    border:
+                                                        OutlineInputBorder(),
                                                   ),
-                                                  Text('ทำสำเร็จแล้ว'),
-                                                ],
-                                              ),
-                                              SizedBox(
-                                                height: 5,
-                                              ),
-                                              ElevatedButton(
-                                                onPressed: addTodoList,
-                                                child: Text('แก้ไข'),
-                                              ),
-                                            ],
+                                                  keyboardType:
+                                                      TextInputType.text,
+                                                ),
+                                                SizedBox(
+                                                  height: 5,
+                                                ),
+                                                Row(
+                                                  mainAxisAlignment:
+                                                      MainAxisAlignment.center,
+                                                  children: [
+                                                    Checkbox(
+                                                      value: editCompleted,
+                                                      onChanged: (newValue) {
+                                                        setState(() {
+                                                          editCompleted =
+                                                              newValue!;
+                                                        });
+                                                      },
+                                                    ),
+                                                    Text('ทำเสร็จแล้ว'),
+                                                  ],
+                                                ),
+                                                SizedBox(
+                                                  height: 5,
+                                                ),
+                                                ElevatedButton(
+                                                  onPressed: () {
+                                                    if (editTaskController
+                                                        .text.isEmpty) {
+                                                      ScaffoldMessenger.of(
+                                                              context)
+                                                          .showSnackBar(
+                                                        SnackBar(
+                                                          content: Text(
+                                                              'กรุณากรอกข้อมูล'),
+                                                        ),
+                                                      );
+                                                      return;
+                                                    }
+                                                    editTodoList(
+                                                      todoList[index]['id'],
+                                                      editTaskController.text,
+                                                      editCompleted,
+                                                    );
+                                                    Navigator.of(context).pop();
+                                                  },
+                                                  child: Text('แก้ไข'),
+                                                ),
+                                              ],
+                                            ),
                                           ),
                                         ),
-                                      ));
-                                });
-                          },
-                        ),
-                        IconButton(
-                          icon: Icon(Icons.delete),
-                          onPressed: () {
-                            deleteTodoList(todoList[index]['id']);
-                          },
-                        ),
-                      ],
+                                      );
+                                    },
+                                  );
+                                },
+                              );
+                            },
+                          ),
+                          IconButton(
+                            icon: Icon(Icons.delete),
+                            onPressed: () {
+                              deleteTodoList(todoList[index]['id']);
+                            },
+                          ),
+                        ],
+                      ),
                     ),
                   );
                 },
-                itemCount: todoList.length,
               ),
             ),
           ],
